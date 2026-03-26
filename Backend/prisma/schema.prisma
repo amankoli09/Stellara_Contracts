@@ -45,6 +45,7 @@ model User {
   reputationHistory    ReputationHistory[]
   notificationSettings NotificationSetting?
   notifications        Notification[]
+  proposals            TransactionProposal[]
   tenantMembers       TenantMember[]
 
   @@map("users")
@@ -423,6 +424,58 @@ model TokenBlacklist {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("token_blacklist")
+}
+
+model MultiSigAccount {
+  id              String   @id @default(cuid())
+  accountId       String   @unique @map("account_id") // Stellar account ID
+  name            String?
+  thresholds      Json     // { masterWeight, lowThreshold, medThreshold, highThreshold }
+  signers         Json     // Array of { key, weight, type }
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  proposals       TransactionProposal[]
+
+  @@map("multi_sig_accounts")
+}
+
+model TransactionProposal {
+  id              String   @id @default(cuid())
+  multiSigId      String   @map("multi_sig_id")
+  multiSig        MultiSigAccount @relation(fields: [multiSigId], references: [id])
+  creatorId       String   @map("creator_id")
+  creator         User     @relation(fields: [creatorId], references: [id])
+  xdr             String   // The unsigned or partially signed base64 XDR
+  description     String?
+  status          ProposalStatus @default(PENDING)
+  expiresAt       DateTime @map("expires_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  signatures      ProposalSignature[]
+
+  @@map("transaction_proposals")
+}
+
+model ProposalSignature {
+  id              String   @id @default(cuid())
+  proposalId      String   @map("proposal_id")
+  proposal        TransactionProposal @relation(fields: [proposalId], references: [id])
+  signerAddress   String   @map("signer_address") // Who signed it
+  signature       String   // The actual signature part
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@unique([proposalId, signerAddress])
+  @@map("proposal_signatures")
+}
+
+enum ProposalStatus {
+  PENDING
+  READY
+  SUBMITTED
+  EXPIRED
+  FAILED
 }
 
 model EncryptionAuditLog {
@@ -877,6 +930,8 @@ model DunningAttempt {
   @@index([status])
   @@index([nextRetryAt])
   @@map("dunning_attempts")
+}
+
 enum WebhookSubscriptionStatus {
   ACTIVE
   PAUSED
