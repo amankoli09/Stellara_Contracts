@@ -312,6 +312,8 @@ model Tenant {
   users     User[]
   auditLogs TenantAuditLog[]
   tenantMembers TenantMember[]
+  webhookSubscriptions WebhookSubscription[]
+  webhookEvents WebhookEvent[]
 
   @@map("tenants")
 }
@@ -577,8 +579,89 @@ model ConfigAuditLog {
   @@map("config_audit_logs")
 }
 
+model WebhookSubscription {
+  id                String                    @id @default(uuid())
+  tenantId          String?                   @map("tenant_id")
+  name              String
+  description       String?
+  url               String
+  secret            String
+  status            WebhookSubscriptionStatus @default(ACTIVE)
+  eventFilters      Json                      @map("event_filters")
+  payloadFields     Json?                     @map("payload_fields")
+  customHeaders     Json?                     @map("custom_headers")
+  createdBy         String?                   @map("created_by")
+  lastTriggeredAt   DateTime?                 @map("last_triggered_at")
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+
+  tenant            Tenant?                   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  deliveries        WebhookDelivery[]
+
+  @@index([tenantId, status])
+  @@index([status])
+  @@map("webhook_subscriptions")
+}
+
+model WebhookEvent {
+  id          String            @id @default(uuid())
+  tenantId    String?           @map("tenant_id")
+  eventType   String            @map("event_type")
+  source      String            @default("platform")
+  payload     Json
+  metadata    Json?
+  occurredAt  DateTime          @default(now()) @map("occurred_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  tenant      Tenant?           @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  deliveries  WebhookDelivery[]
+
+  @@index([tenantId, eventType])
+  @@index([eventType, occurredAt])
+  @@map("webhook_events")
+}
+
+model WebhookDelivery {
+  id                String                @id @default(uuid())
+  subscriptionId    String                @map("subscription_id")
+  eventId           String                @map("event_id")
+  status            WebhookDeliveryStatus @default(PENDING)
+  attempts          Int                   @default(0)
+  maxAttempts       Int                   @default(10) @map("max_attempts")
+  nextAttemptAt     DateTime              @default(now()) @map("next_attempt_at")
+  lastAttemptAt     DateTime?             @map("last_attempt_at")
+  deliveredAt       DateTime?             @map("delivered_at")
+  lastResponseCode  Int?                  @map("last_response_code")
+  lastResponseBody  String?               @map("last_response_body")
+  errorMessage      String?               @map("error_message")
+  signature         String?               @map("signature")
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+
+  subscription      WebhookSubscription   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  event             WebhookEvent          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt])
+  @@index([subscriptionId, status])
+  @@index([eventId])
+  @@map("webhook_deliveries")
+}
+
 enum ConfigScope {
   GLOBAL
   TENANT
   USER
+}
+
+enum WebhookSubscriptionStatus {
+  ACTIVE
+  PAUSED
+  DISABLED
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  RETRYING
+  DELIVERED
+  FAILED
 }
