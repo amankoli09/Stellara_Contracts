@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AbiRegistryModule } from '../abi-registry/abi-registry.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from '@nestjs/config';
 import { IndexerService } from './indexer.service';
@@ -23,6 +24,7 @@ import stellarConfig, { indexerConfig } from '../config/stellar.config';
     ScheduleModule.forRoot(),
     // Database access
     DatabaseModule,
+    AbiRegistryModule,
     // Configuration
     ConfigModule.forFeature(stellarConfig),
     ConfigModule.forFeature(indexerConfig),

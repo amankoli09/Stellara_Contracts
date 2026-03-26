@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { AbiRegistryService } from '../../abi-registry/abi-registry.service';
 import { EventListenerService, SorobanEvent } from '../events/event-listener.service';
 import { StorageService } from '../storage/storage.service';
 import { IndexedEvent } from '../entities/indexed-event.entity';
@@ -29,6 +30,7 @@ export class EventProcessorService {
   constructor(
     private eventListener: EventListenerService,
     private storage: StorageService,
+    private abiRegistryService: AbiRegistryService,
   ) {
     this.setupEventListeners();
     this.initializeTransformers();
@@ -158,6 +160,27 @@ export class EventProcessorService {
   }
 
   private async transformEvent(event: SorobanEvent): Promise<any> {
+    try {
+      const parsedEvent = await this.abiRegistryService.parseIndexedEvent({
+        contractId: event.contractId,
+        topic: event.topic,
+        data: event.data,
+      });
+
+      return {
+        ...event,
+        eventName: parsedEvent.eventName,
+        contractType: parsedEvent.contractType,
+        abiVersion: parsedEvent.version,
+        eventData: parsedEvent.decoded,
+        schema: parsedEvent.schema,
+      };
+    } catch (error) {
+      this.logger.debug(
+        `ABI registry parse skipped for ${event.contractId}: ${error.message}`,
+      );
+    }
+
     const eventName = this.extractEventName(event);
     const key = `${event.contractId}:${eventName}`;
     const transformers = this.transformers.get(key) || [];

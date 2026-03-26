@@ -35,6 +35,9 @@ export class StorageService {
           contractId: eventData.contractId!,
           eventType: this.extractEventName(eventData),
           transactionHash: eventData.transactionHash!,
+          contractType: (eventData as any).contractType ?? null,
+          decodedData: (eventData as any).eventData ?? null,
+          abiVersion: (eventData as any).abiVersion ?? null,
         },
       });
       
@@ -60,7 +63,7 @@ export class StorageService {
 
   async getEventByTransactionHash(transactionHash: string): Promise<SorobanEvent | null> {
     try {
-      const event = await this.prisma.processedEvent.findUnique({
+      const event = await this.prisma.processedEvent.findFirst({
         where: { transactionHash },
       });
       
@@ -71,7 +74,7 @@ export class StorageService {
         type: 'contract_event',
         contractId: event.contractId,
         topic: [],
-        data: '',
+        data: JSON.stringify(event.decodedData ?? {}),
         timestamp: new Date().getTime(),
         ledger: event.ledgerSeq,
         transactionHash: event.transactionHash,
@@ -88,6 +91,10 @@ export class StorageService {
 
       if (query.contractId) {
         where.contractId = query.contractId;
+      }
+
+      if (query.eventName) {
+        where.eventType = query.eventName;
       }
 
       if (query.fromLedger) {
@@ -120,6 +127,10 @@ export class StorageService {
 
       if (query.contractId) {
         where.contractId = query.contractId;
+      }
+
+      if (query.eventName) {
+        where.eventType = query.eventName;
       }
 
       if (query.fromLedger) {
@@ -328,6 +339,9 @@ export class StorageService {
   private extractEventName(event: Partial<SorobanEvent>): string {
     // Extract event name from event data or use default
     try {
+      if ((event as any).eventName) {
+        return String((event as any).eventName);
+      }
       if (event.data) {
         const parsed = JSON.parse(event.data);
         return parsed.eventName || parsed.name || 'unknown';

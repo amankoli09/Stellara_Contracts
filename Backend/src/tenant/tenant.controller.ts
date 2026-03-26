@@ -17,11 +17,15 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
+import { TenantQuotaService } from '../quota/quota.service';
 
 @Controller('tenants')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TenantController {
-  constructor(private readonly tenantService: TenantService) {}
+  constructor(
+    private readonly tenantService: TenantService,
+    private readonly quotaService: TenantQuotaService,
+  ) {}
 
   /**
    * POST /tenants
@@ -86,5 +90,15 @@ export class TenantController {
   @Roles(Role.SUPER_ADMIN)
   getAuditLogs(@Param('id') id: string) {
     return this.tenantService.getAuditLogs(id);
+  }
+
+  /**
+   * GET /tenants/:id/usage
+   * Tenant usage dashboard (API quota usage, limits, and usage counters).
+   */
+  @Get(':id/usage')
+  @Roles(Role.SUPER_ADMIN, Role.TENANT_ADMIN)
+  getUsage(@Param('id') id: string) {
+    return this.quotaService.getTenantUsage(id);
   }
 }

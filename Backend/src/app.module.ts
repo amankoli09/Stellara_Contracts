@@ -1,18 +1,32 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
-import { UserController } from './user.controller';
 import { AppService } from './app.service';
 import { validateEnv } from './config/env.validation';
-import { ReputationModule } from './reputation/reputation.module';
 import { DatabaseModule } from './database.module';
-import { IndexerModule } from './indexer/indexer.module';
-import { NotificationModule } from './notification/notification.module';
 import { AuthModule } from './auth/auth.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { PaymentModule } from './payment/payment.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nestjs/throttler-storage-redis';
+import { DocsController } from './docs/docs.controller';
+import { LoggingModule } from './logging/logging.module';
+import { RedisModule } from './redis/redis.module';
+import { RateLimitModule } from './rate-limiting/rate-limit.module';
+import { SessionModule } from './sessions/session.module';
+import { LifecycleModule } from './lifecycle/lifecycle.module';
+import { IndexAnalysisModule } from './index-analysis/index-analysis.module';
+import { ErrorHandlingModule } from './common/error-handling.module';
+import { BackupModule } from './backup/backup.module';
+import { QuotaModule } from './quota/quota.module';
+import { AdminModule } from './admin/admin.module';
+import { TenantModule } from './tenant/tenant.module';
+import { UserController } from './user.controller';
+import { PrismaModule } from './prisma.module';
+import { RabbitmqModule } from './messaging/rabbitmq/rabbitmq.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
+import { AbiRegistryModule } from './abi-registry/abi-registry.module';
 
 @Module({
   imports: [
@@ -21,27 +35,33 @@ import { ThrottlerStorageRedisService } from '@nestjs/throttler-storage-redis';
       envFilePath: '.env',
       validate: validateEnv,
     }),
-    // Global rate limiting with Redis storage
-    ThrottlerModule.forRootAsync({
-      useFactory: () => ({
-        ttl: 60, // time window in seconds
-        limit: 100, // default requests per window
-        storage: new ThrottlerStorageRedisService({
-          host: process.env.REDIS_HOST || 'localhost',
-          port: parseInt(process.env.REDIS_PORT || '6379', 10),
-          password: process.env.REDIS_PASSWORD || undefined,
-        }),
-      }),
+    ScheduleModule.forRoot(),
+    // Structured logging with correlation IDs and performance tracing
+    LoggingModule.forRoot({
+      enableRequestLogging: true,
+      enablePerformanceTracing: true,
+      defaultContext: 'Application',
     }),
-    ReputationModule,
+    RedisModule,
     DatabaseModule,
-    IndexerModule,
-    NotificationModule,
+    PrismaModule,
+    LifecycleModule,
+    RateLimitModule,
+    SessionModule,
+    IndexAnalysisModule,
     AuthModule,
     WebsocketModule,
     PaymentModule,
+    // Backup and disaster recovery module
+    BackupModule,
+    QuotaModule,
+    AdminModule,
+    TenantModule,
+    WebhooksModule,
+    RabbitmqModule,
+    AbiRegistryModule,
   ],
-  controllers: [AppController, UserController],
+  controllers: [AppController, UserController, DocsController],
   providers: [AppService],
 })
 export class AppModule {}

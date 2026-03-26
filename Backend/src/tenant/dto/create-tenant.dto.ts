@@ -14,7 +14,7 @@ import {
   Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TenantPlan } from '@prisma/client';
+import { ApiOveragePolicy, TenantPlan } from '@prisma/client';
 
 export class TenantSettingsDto {
   @IsOptional()
@@ -36,6 +36,20 @@ export class TenantSettingsDto {
   @IsOptional()
   @IsBoolean()
   notificationsEnabled?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  apiCallsPerMonthLimit?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  storageGbLimit?: number;
+
+  @IsOptional()
+  @IsEnum(ApiOveragePolicy)
+  apiOveragePolicy?: ApiOveragePolicy;
 }
 
 export class CreateTenantDto {

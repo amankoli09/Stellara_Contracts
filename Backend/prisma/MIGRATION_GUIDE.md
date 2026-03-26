@@ -41,7 +41,7 @@ npm run db:migrate:deploy
 ## Seed Data
 
 ```bash
-# Run seed (safe to run multiple times — uses upsert)
+# Run seed (safe to run multiple times - uses upsert)
 npm run db:seed
 ```
 
@@ -59,6 +59,8 @@ The `db-migrations.yml` workflow runs on every PR touching `prisma/`:
 | deploy-staging    | Push to main    | Deploys to staging environment                     |
 | deploy-production | Manual dispatch | Deploys to production (requires staging success)   |
 
+The blue-green release workflow lives at `.github/workflows/backend-blue-green.yml`.
+
 Required GitHub secrets:
 
 - `STAGING_DATABASE_URL`
@@ -74,13 +76,16 @@ Required GitHub secrets:
 - [ ] If removing a column: deploy app code that stops using it first, then drop in a follow-up migration
 - [ ] Database backup taken (or automated backup confirmed)
 - [ ] Staging migration ran successfully
+- [ ] Candidate blue-green slot is healthy before any traffic switch
+- [ ] Risky changes are hidden behind feature flags during rollout
 
 ### Zero-downtime migration rules
 
-1. Never rename a column directly — add new column, backfill, update app, drop old column
-2. Never add a NOT NULL column without a default value
-3. Never drop a column that the current app version still reads
-4. Index creation should use `CREATE INDEX CONCURRENTLY` (add via raw SQL migration)
+1. Never rename a column directly - add new column, backfill, update app, drop old column.
+2. Never add a NOT NULL column without a default value.
+3. Never drop a column that the current app version still reads.
+4. Index creation should use `CREATE INDEX CONCURRENTLY` in raw SQL migrations.
+5. Contract migrations only after the old slot has been fully drained.
 
 ### Deploying
 
@@ -88,8 +93,11 @@ Required GitHub secrets:
 # Run pre-deploy safety check
 npm run db:pre-deploy
 
-# Apply migrations (idempotent — safe to re-run)
+# Apply migrations (idempotent - safe to re-run)
 npm run db:migrate:deploy
+
+# Promote the inactive slot with health gates and automatic rollback
+npm run deploy:blue-green
 ```
 
 ### After deploying
@@ -102,6 +110,9 @@ npm run db:migrate:deploy
 ### Emergency rollback
 
 ```bash
+# 0. Return traffic to the stable slot
+npm run deploy:rollback
+
 # 1. Identify the bad migration
 npm run db:rollback:list
 

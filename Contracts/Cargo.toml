@@ -2,14 +2,17 @@
 members = [
     "contracts/trading",
     "contracts/social_rewards",
+    "contracts/messaging",
     "contracts/academy",
     "contracts/academy-rewards",
+    "integration-tests",
     "shared",
 ]
 resolver = "2"
 
 [profile.release]
 opt-level = "z"
+overflow-checks = true
 lto = true
 codegen-units = 1
 strip = true
