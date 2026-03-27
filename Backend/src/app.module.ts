@@ -39,6 +39,7 @@ import { validateEnv } from './config/env.validation';
 import { SupportModule } from './support/support.module';
 import { MultisigModule } from './multisig/multisig.module';
 import { VestingModule } from './vesting/vesting.module';
+import { LiquidityMiningModule } from './liquidity-mining/liquidity-mining.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { GraphqlModule } from './graphql/graphql.module';
 
@@ -100,6 +101,7 @@ import { GraphqlModule } from './graphql/graphql.module';
     CollateralModule,
     GeolocationModule,
     VestingModule,
+    LiquidityMiningModule,
     MonitoringModule,
     GraphqlModule,
   ],

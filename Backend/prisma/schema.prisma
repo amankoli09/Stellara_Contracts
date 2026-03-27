@@ -1527,3 +1527,107 @@ model SyntheticTestResult {
   @@index([success])
   @@map("synthetic_test_results")
 }
+
+// ─── Liquidity Mining Models ─────────────────────────────────────────────────
+
+model LiquidityMiningPair {
+  id                      String   @id @default(cuid())
+  pairId                  Int      @unique @map("pair_id")
+  pairSymbol              String   @map("pair_symbol") // e.g., "USDC_STELLAR"
+  emissionsPerBlock       Decimal  @db.Decimal(18, 4) @map("emissions_per_block")
+  totalAllocated          Decimal  @db.Decimal(18, 4) @map("total_allocated")
+  accumulatedRewardPerShare Decimal @default(0) @db.Decimal(18, 4) @map("accumulated_reward_per_share")
+  lastUpdateBlock         BigInt   @map("last_update_block")
+  active                  Boolean  @default(true)
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  lpStakes           LPStake[]
+  rewardDistributions LiquidityReward[]
+
+  @@index([pairId])
+  @@index([active])
+  @@index([pairSymbol])
+  @@map("liquidity_mining_pairs")
+}
+
+model LPStake {
+  id                    String @id @default(cuid())
+  userAddress           String @map("user_address")
+  pairId                Int    @map("pair_id")
+  pair                  LiquidityMiningPair @relation(fields: [pairId], references: [pairId], onDelete: Cascade)
+  lpBalance             Decimal @db.Decimal(18, 4) @map("lp_balance")
+  startTimestamp        DateTime @map("start_timestamp")
+  rewardDebt            Decimal @default(0) @db.Decimal(18, 4) @map("reward_debt")
+  bonusMultiplierTier   Int @default(0) @map("bonus_multiplier_tier") // 0=1x, 1=2x, 2=3x, 3=5x
+  lockedUntil           DateTime? @map("locked_until")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  rewards GovernanceLock[]
+
+  @@unique([userAddress, pairId])
+  @@index([userAddress])
+  @@index([pairId])
+  @@index([bonusMultiplierTier])
+  @@index([lockedUntil])
+  @@map("lp_stakes")
+}
+
+model LiquidityReward {
+  id                  String @id @default(cuid())
+  userAddress         String @map("user_address")
+  pairId              Int    @map("pair_id")
+  pair                LiquidityMiningPair @relation(fields: [pairId], references: [pairId], onDelete: Cascade)
+  rewardAmount        Decimal @db.Decimal(18, 4) @map("reward_amount")
+  bonusMultiplier     Decimal @default(1.0) @db.Decimal(5, 2) @map("bonus_multiplier")
+  finalRewardAmount   Decimal @db.Decimal(18, 4) @map("final_reward_amount")
+  claimedAt           DateTime @map("claimed_at")
+  transactionHash     String? @map("transaction_hash")
+  blockNumber         BigInt? @map("block_number")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  @@index([userAddress])
+  @@index([pairId])
+  @@index([claimedAt])
+  @@index([userAddress, pairId])
+  @@map("liquidity_rewards")
+}
+
+model GovernanceLock {
+  id                  String @id @default(cuid())
+  userAddress         String @map("user_address")
+  lpStakeId           String @map("lp_stake_id")
+  lpStake             LPStake @relation(fields: [lpStakeId], references: [id], onDelete: Cascade)
+  governancePower     Decimal @db.Decimal(18, 4) @map("governance_power")
+  lockupDuration      Int @map("lockup_duration") // in days
+  lockedUntil         DateTime @map("locked_until")
+  released            Boolean @default(false)
+  releasedAt          DateTime? @map("released_at")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@index([userAddress])
+  @@index([lpStakeId])
+  @@index([lockedUntil])
+  @@index([released])
+  @@map("governance_locks")
+}
+
+model LiquidityMiningEvent {
+  id                  String @id @default(cuid())
+  userAddress         String @map("user_address")
+  eventType           String @map("event_type") // "provide_liquidity", "withdraw_liquidity", "claim_reward", "lock_governance"
+  pairId              Int? @map("pair_id")
+  amount              Decimal? @db.Decimal(18, 4)
+  metadata            Json? // Additional event data
+  transactionHash     String? @map("transaction_hash")
+  blockNumber         BigInt? @map("block_number")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  @@index([userAddress])
+  @@index([eventType])
+  @@index([pairId])
+  @@index([createdAt])
+  @@map("liquidity_mining_events")
+}
