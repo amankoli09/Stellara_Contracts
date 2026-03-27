@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma.service';
 import { SyntheticTestResultDto } from './monitoring.dto';
 import axios from 'axios';
+import { CircuitBreakerService } from '../circuit-breaker/circuit-breaker.service';
 
 const LOCATIONS = ['us-east', 'eu-west', 'ap-southeast', 'us-west', 'sa-east'];
 
@@ -16,7 +17,18 @@ const ALERT_P95_LATENCY_THRESHOLD = 2000; // ms
 export class MonitoringService {
   private readonly logger = new Logger(MonitoringService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly circuitBreakerService: CircuitBreakerService,
+  ) {
+    this.circuitBreakerService.register('internal-synthetic-http', {
+      failureThreshold: 5,
+      failureWindowMs: 10_000,
+      openTimeoutMs: 30_000,
+      halfOpenMaxCalls: 10,
+      halfOpenSuccessThreshold: 3,
+    });
+  }
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async runSyntheticTests(): Promise<void> {
@@ -67,7 +79,7 @@ export class MonitoringService {
   async runLoginJourney(location: string): Promise<{ success: boolean; durationMs: number; error?: string; statusCode?: number }> {
     const start = Date.now();
     try {
-      const response = await axios.post(
+      const response = await this.postWithCircuit(
         `${BASE_URL}/auth/login`,
         { walletAddress: 'synthetic-test-wallet', signature: 'synthetic-sig' },
         { timeout: 10000, headers: { 'X-Synthetic-Test': 'true', 'X-Location': location } },
@@ -91,7 +103,7 @@ export class MonitoringService {
   async runDepositJourney(location: string): Promise<{ success: boolean; durationMs: number; error?: string; statusCode?: number }> {
     const start = Date.now();
     try {
-      const response = await axios.post(
+      const response = await this.postWithCircuit(
         `${BASE_URL}/payment/deposit`,
         { amount: 0.001, currency: 'XLM', synthetic: true },
         { timeout: 10000, headers: { 'X-Synthetic-Test': 'true', 'X-Location': location } },
@@ -114,7 +126,7 @@ export class MonitoringService {
   async runTradeJourney(location: string): Promise<{ success: boolean; durationMs: number; error?: string; statusCode?: number }> {
     const start = Date.now();
     try {
-      const response = await axios.post(
+      const response = await this.postWithCircuit(
         `${BASE_URL}/trade`,
         { pair: 'XLM/USDC', amount: 0.001, side: 'buy', synthetic: true },
         { timeout: 10000, headers: { 'X-Synthetic-Test': 'true', 'X-Location': location } },
@@ -137,7 +149,7 @@ export class MonitoringService {
   async runWithdrawalJourney(location: string): Promise<{ success: boolean; durationMs: number; error?: string; statusCode?: number }> {
     const start = Date.now();
     try {
-      const response = await axios.post(
+      const response = await this.postWithCircuit(
         `${BASE_URL}/payment/withdraw`,
         { amount: 0.001, currency: 'XLM', destinationAddress: 'synthetic-dest', synthetic: true },
         { timeout: 10000, headers: { 'X-Synthetic-Test': 'true', 'X-Location': location } },
@@ -366,5 +378,15 @@ export class MonitoringService {
     }
 
     return trends.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  private async postWithCircuit(
+    url: string,
+    data: Record<string, unknown>,
+    config: Record<string, unknown>,
+  ) {
+    return this.circuitBreakerService.execute('internal-synthetic-http', () =>
+      axios.post(url, data, config),
+    );
   }
 }

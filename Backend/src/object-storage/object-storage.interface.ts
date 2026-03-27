@@ -12,6 +12,7 @@ export interface UploadOptions {
   contentType?: string;
   metadata?: Record<string, string>;
   acl?: 'private' | 'public-read';
+  storageClass?: 'STANDARD' | 'GLACIER' | 'DEEP_ARCHIVE';
 }
 
 export interface ObjectStorageConfig {

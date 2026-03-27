@@ -1843,3 +1843,194 @@ model SecretAlert {
   @@index([createdAt])
   @@map("secret_alerts")
 }
+
+// Blockchain Transaction Queue Models
+enum TransactionQueuePriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+enum TransactionQueueStatus {
+  QUEUED
+  PROCESSING
+  SUBMITTED
+  STUCK
+  CONFIRMED
+  FAILED
+  CANCELLED
+  DEAD_LETTER
+}
+
+model BlockchainTransactionQueueItem {
+  id                 String                   @id @default(cuid())
+  idempotencyKey     String                   @unique @map("idempotency_key")
+  signerAddress      String                   @map("signer_address")
+  contractAddress    String                   @map("contract_address")
+  functionName       String                   @map("function_name")
+  payload            Json
+  metadata           Json?
+  priority           TransactionQueuePriority @default(NORMAL)
+  status             TransactionQueueStatus   @default(QUEUED)
+  nonce              BigInt?
+  feeBid             BigInt?                  @map("fee_bid")
+  maxFee             BigInt?                  @map("max_fee")
+  txHash             String?                  @map("tx_hash")
+  retryCount         Int                      @default(0) @map("retry_count")
+  maxRetries         Int                      @default(5) @map("max_retries")
+  nextAttemptAt      DateTime?                @map("next_attempt_at")
+  lastError          String?                  @map("last_error")
+  result             Json?
+  submittedAt        DateTime?                @map("submitted_at")
+  confirmedAt        DateTime?                @map("confirmed_at")
+  processingStartedAt DateTime?               @map("processing_started_at")
+  createdAt          DateTime                 @default(now()) @map("created_at")
+  updatedAt          DateTime                 @updatedAt @map("updated_at")
+
+  attempts           BlockchainTransactionAttempt[]
+
+  @@index([status, priority, createdAt])
+  @@index([signerAddress, status])
+  @@index([nextAttemptAt])
+  @@map("blockchain_tx_queue_items")
+}
+
+model BlockchainTransactionAttempt {
+  id            String                 @id @default(cuid())
+  queueItemId   String                 @map("queue_item_id")
+  queueItem     BlockchainTransactionQueueItem @relation(fields: [queueItemId], references: [id], onDelete: Cascade)
+  attemptNumber Int                    @map("attempt_number")
+  nonce         BigInt?
+  feeBid        BigInt?                @map("fee_bid")
+  txHash        String?                @map("tx_hash")
+  status        TransactionQueueStatus
+  error         String?
+  rawResponse   Json?                  @map("raw_response")
+  createdAt     DateTime               @default(now()) @map("created_at")
+
+  @@index([queueItemId, attemptNumber])
+  @@index([txHash])
+  @@map("blockchain_tx_attempts")
+}
+
+model BlockchainNonceState {
+  signerAddress String   @id @map("signer_address")
+  nextNonce     BigInt   @default(0) @map("next_nonce")
+  lastUsedNonce BigInt?  @map("last_used_nonce")
+  lastTxHash    String?  @map("last_tx_hash")
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("blockchain_nonce_states")
+}
+
+// Data Retention & Archival Models
+enum RetentionDataType {
+  TRADES
+  LOGS
+  SESSIONS
+  ANALYTICS
+  WEBHOOKS
+  AUDIT
+}
+
+model DataRetentionRule {
+  id              String            @id @default(cuid())
+  name            String
+  dataType        RetentionDataType @map("data_type")
+  tenantId        String?           @map("tenant_id")
+  retentionDays   Int               @map("retention_days")
+  archiveEnabled  Boolean           @default(true) @map("archive_enabled")
+  archivePrefix   String?           @map("archive_prefix")
+  secureDelete    Boolean           @default(true) @map("secure_delete")
+  legalHoldEnabled Boolean          @default(true) @map("legal_hold_enabled")
+  isActive        Boolean           @default(true) @map("is_active")
+  metadata        Json?
+  lastRunAt       DateTime?         @map("last_run_at")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  executions      RetentionExecution[]
+  legalHolds      LegalHold[]
+
+  @@unique([tenantId, dataType])
+  @@index([dataType, isActive])
+  @@map("data_retention_rules")
+}
+
+model LegalHold {
+  id          String            @id @default(cuid())
+  ruleId      String?           @map("rule_id")
+  rule        DataRetentionRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  dataType    RetentionDataType @map("data_type")
+  referenceId String            @map("reference_id")
+  reason      String
+  heldBy      String?           @map("held_by")
+  expiresAt   DateTime?         @map("expires_at")
+  isActive    Boolean           @default(true) @map("is_active")
+  metadata    Json?
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  @@index([dataType, referenceId, isActive])
+  @@index([expiresAt])
+  @@map("legal_holds")
+}
+
+model RetentionExecution {
+  id                 String            @id @default(cuid())
+  ruleId             String            @map("rule_id")
+  rule               DataRetentionRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  dataType           RetentionDataType @map("data_type")
+  status             String
+  archivedCount      Int               @default(0) @map("archived_count")
+  deletedCount       Int               @default(0) @map("deleted_count")
+  cryptoShreddedCount Int              @default(0) @map("crypto_shredded_count")
+  error              String?
+  report             Json?
+  startedAt          DateTime          @default(now()) @map("started_at")
+  finishedAt         DateTime?         @map("finished_at")
+  createdAt          DateTime          @default(now()) @map("created_at")
+
+  @@index([ruleId, createdAt])
+  @@index([dataType, createdAt])
+  @@map("retention_executions")
+}
+
+// Real-Time Analytics Rollups
+enum MetricRollupBucket {
+  M1
+  M5
+  M15
+  H1
+  D1
+}
+
+model RealtimeMetricRollup {
+  id          String           @id @default(cuid())
+  bucket      MetricRollupBucket
+  metricName  String           @map("metric_name")
+  metricValue Decimal          @db.Decimal(28, 8) @map("metric_value")
+  dimensions  Json?
+  bucketStart DateTime         @map("bucket_start")
+  bucketEnd   DateTime         @map("bucket_end")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  @@unique([bucket, metricName, bucketStart])
+  @@index([metricName, bucketStart])
+  @@index([bucket, bucketStart])
+  @@map("realtime_metric_rollups")
+}
+
+model RealtimeMetricSnapshot {
+  id          String   @id @default(cuid())
+  metricName  String   @map("metric_name")
+  metricValue Decimal  @db.Decimal(28, 8) @map("metric_value")
+  dimensions  Json?
+  capturedAt  DateTime @default(now()) @map("captured_at")
+
+  @@index([metricName, capturedAt])
+  @@map("realtime_metric_snapshots")
+}

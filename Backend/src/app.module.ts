@@ -45,9 +45,12 @@ import { GraphqlModule } from './graphql/graphql.module';
 import { ObjectStorageModule } from './object-storage/object-storage.module';
 import { FailoverModule } from './failover/failover.module';
 import { CostMonitoringModule } from './cost-monitoring/cost-monitoring.module';
+import { CircuitBreakerModule } from './circuit-breaker/circuit-breaker.module';
+import { DataRetentionModule } from './data-retention/data-retention.module';
 import { DataResidencyModule } from './data-residency/data-residency.module';
 import { PredictiveMaintenanceModule } from './predictive-maintenance/predictive-maintenance.module';
 import { SecretsManagementModule } from './secrets-management/secrets-management.module';
+import { TransactionQueueModule } from './transaction-queue/transaction-queue.module';
 
 @Module({
   imports: [
@@ -109,6 +112,9 @@ import { SecretsManagementModule } from './secrets-management/secrets-management
     VestingModule,
     LiquidityMiningModule,
     MonitoringModule,
+    CircuitBreakerModule,
+    TransactionQueueModule,
+    DataRetentionModule,
     GraphqlModule,
     ObjectStorageModule,
     FailoverModule,

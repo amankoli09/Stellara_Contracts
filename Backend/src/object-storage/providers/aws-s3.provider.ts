@@ -26,6 +26,7 @@ export class AwsS3Provider implements ObjectStorageProvider {
       ContentType: options?.contentType,
       Metadata: options?.metadata,
       ACL: options?.acl === 'public-read' ? 'public-read' : 'private',
+      StorageClass: options?.storageClass,
     });
 
     await this.s3Client.send(command);
