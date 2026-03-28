@@ -9,7 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { PaymentModule } from './payment/payment.module';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { ThrottlerStorageRedisService } from '@nestjs/throttler-storage-redis';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { DocsController } from './docs/docs.controller';
 import { LoggingModule } from './logging/logging.module';
 import { RedisModule } from './redis/redis.module';
@@ -28,6 +28,7 @@ import { RabbitmqModule } from './messaging/rabbitmq/rabbitmq.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { AbiRegistryModule } from './abi-registry/abi-registry.module';
 import { MultisigModule } from './multisig/multisig.module';
+import { MonitoringModule } from './monitoring/monitoring.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { MultisigModule } from './multisig/multisig.module';
     RabbitmqModule,
     AbiRegistryModule,
     MultisigModule,
+    MonitoringModule,
   ],
   controllers: [AppController, UserController, DocsController],
   providers: [AppService],
