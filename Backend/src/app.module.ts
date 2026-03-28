@@ -2,8 +2,7 @@ import { AbiRegistryModule } from './abi-registry/abi-registry.module';
 import { ExperimentsModule } from './experiments/experiments.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { KycModule } from './kyc/kyc.module';
-import { CollateralModule } from './collateral/collateral.module';
-import { GeolocationModule } from './geolocation/geolocation.module';
+
 
 import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
@@ -114,26 +113,7 @@ import { LiquidityAggregationModule } from './liquidity-aggregation/liquidity-ag
     AnalyticsModule,
     ExperimentsModule,
     KycModule,
-    CollateralModule,
-    GeolocationModule,
-    VestingModule,
-    LiquidityMiningModule,
-    MonitoringModule,
-    CircuitBreakerModule,
-    TransactionQueueModule,
-    DataRetentionModule,
-    GraphqlModule,
-    ObjectStorageModule,
-    ZkModule,
-    IdentityModule,
-    ClearingModule,
-    DocumentProcessingModule,
-    FailoverModule,
-    CostMonitoringModule,
-    DataResidencyModule,
-    PredictiveMaintenanceModule,
-    SecretsManagementModule,
-    LiquidityAggregationModule,
+
   ],
   controllers: [AppController, UserController, DocsController],
   providers: [AppService],
