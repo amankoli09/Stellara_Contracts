@@ -2,14 +2,16 @@ import { AbiRegistryModule } from './abi-registry/abi-registry.module';
 import { ExperimentsModule } from './experiments/experiments.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { KycModule } from './kyc/kyc.module';
-import { CollateralModule } from './collateral/collateral.module';
-import { GeolocationModule } from './geolocation/geolocation.module';
 
 import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { WebsocketModule } from './websocket/websocket.module';
+import { PaymentModule } from './payment/payment.module';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { BackupModule } from './backup/backup.module';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './database.module';
@@ -19,7 +21,7 @@ import { IndexAnalysisModule } from './index-analysis/index-analysis.module';
 import { LifecycleModule } from './lifecycle/lifecycle.module';
 import { LoggingModule } from './logging/logging.module';
 import { Module } from '@nestjs/common';
-import { PaymentModule } from './payment/payment.module';
+import { FraudModule } from './fraud/fraud.module';
 import { PrismaModule } from './prisma.module';
 import { QuotaModule } from './quota/quota.module';
 import { RabbitmqModule } from './messaging/rabbitmq/rabbitmq.module';
@@ -29,29 +31,37 @@ import { ReputationModule } from './reputation/reputation.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SessionModule } from './sessions/session.module';
 import { TenantModule } from './tenant/tenant.module';
-import { ThrottlerModule } from '@nestjs/throttler';
-import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { UserController } from './user.controller';
 import { WebhooksModule } from './webhooks/webhooks.module';
-import { WebsocketModule } from './websocket/websocket.module';
 import { validateEnv } from './config/env.validation';
+import { CollateralModule } from './collateral/collateral.module';
+import { GeolocationModule } from './geolocation/geolocation.module';
 
 import { SupportModule } from './support/support.module';
 import { MultisigModule } from './multisig/multisig.module';
+
 import { VestingModule } from './vesting/vesting.module';
 import { LiquidityMiningModule } from './liquidity-mining/liquidity-mining.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { GraphqlModule } from './graphql/graphql.module';
 import { ObjectStorageModule } from './object-storage/object-storage.module';
+import { ZkModule } from './zk/zk.module';
 import { FailoverModule } from './failover/failover.module';
+import { IdentityModule } from './identity/identity.module';
+import { ClearingModule } from './clearing/clearing.module';
 import { CostMonitoringModule } from './cost-monitoring/cost-monitoring.module';
 import { CircuitBreakerModule } from './circuit-breaker/circuit-breaker.module';
 import { DataRetentionModule } from './data-retention/data-retention.module';
+import { DocumentProcessingModule } from './document-processing/document.module';
 import { DataResidencyModule } from './data-residency/data-residency.module';
 import { PredictiveMaintenanceModule } from './predictive-maintenance/predictive-maintenance.module';
 import { SecretsManagementModule } from './secrets-management/secrets-management.module';
 import { TransactionQueueModule } from './transaction-queue/transaction-queue.module';
 import { SupplyChainFinanceModule } from './supply-chain-finance/supply-chain-finance.module';
+import { LiquidityAggregationModule } from './liquidity-aggregation/liquidity-aggregation.module';
+import { CrossChainSwapModule } from './cross-chain-swap/cross-chain-swap.module';
+import { PredictiveSettlementModule } from './predictive-settlement/predictive-settlement.module';
+
 
 @Module({
   imports: [
@@ -95,6 +105,7 @@ import { SupplyChainFinanceModule } from './supply-chain-finance/supply-chain-fi
     AuthModule,
     WebsocketModule,
     PaymentModule,
+    FraudModule,
     // Backup and disaster recovery module
     BackupModule,
     QuotaModule,
@@ -105,6 +116,9 @@ import { SupplyChainFinanceModule } from './supply-chain-finance/supply-chain-fi
     AbiRegistryModule,
     SupportModule,
     MultisigModule,
+
+    MonitoringModule,
+
     AnalyticsModule,
     ExperimentsModule,
     KycModule,
@@ -118,14 +132,24 @@ import { SupplyChainFinanceModule } from './supply-chain-finance/supply-chain-fi
     DataRetentionModule,
     GraphqlModule,
     ObjectStorageModule,
+    ZkModule,
+    IdentityModule,
+    ClearingModule,
+    DocumentProcessingModule,
     FailoverModule,
     CostMonitoringModule,
     DataResidencyModule,
     PredictiveMaintenanceModule,
     SecretsManagementModule,
     SupplyChainFinanceModule,
+    LiquidityAggregationModule,
+    CrossChainSwapModule,
+      PredictiveSettlementModule,
+    CollateralModule,
+    GeolocationModule,
+
   ],
   controllers: [AppController, UserController, DocsController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

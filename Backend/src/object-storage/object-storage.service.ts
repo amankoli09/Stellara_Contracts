@@ -5,6 +5,8 @@ import { ObjectStorageProvider, ObjectStorageConfig, UploadOptions } from './obj
 import { AwsS3Provider } from './providers/aws-s3.provider';
 import { AzureBlobProvider } from './providers/azure-blob.provider';
 import { GcpStorageProvider } from './providers/gcp-storage.provider';
+import { IpfsProvider } from './providers/ipfs.provider';
+import { ArweaveProvider } from './providers/arweave.provider';
 
 @Injectable()
 export class ObjectStorageService {
@@ -24,6 +26,12 @@ export class ObjectStorageService {
       case 'gcp':
         this.provider = new GcpStorageProvider(config);
         break;
+      case 'ipfs':
+        this.provider = new IpfsProvider(config);
+        break;
+      case 'arweave':
+        this.provider = new ArweaveProvider(config);
+        break;
       default:
         throw new Error(`Unsupported object storage provider: ${providerType}`);
     }
@@ -31,7 +39,7 @@ export class ObjectStorageService {
 
   private getProviderConfig(provider: string): ObjectStorageConfig {
     const baseConfig = {
-      provider: provider as 'aws' | 'azure' | 'gcp',
+      provider: provider as 'aws' | 'azure' | 'gcp' | 'ipfs' | 'arweave',
       bucket: this.configService.get<string>('OBJECT_STORAGE_BUCKET', 'stellara-storage'),
     };
 
@@ -60,6 +68,29 @@ export class ObjectStorageService {
             projectId: this.configService.get<string>('GCP_PROJECT_ID'),
             serviceAccountKey: this.configService.get<string>('GCP_SERVICE_ACCOUNT_KEY'),
           },
+        };
+      case 'ipfs':
+        return {
+          ...baseConfig,
+          host: this.configService.get<string>('IPFS_HOST', 'ipfs.infura.io'),
+          port: Number(this.configService.get<string>('IPFS_PORT', '5001')),
+          protocol: this.configService.get<string>('IPFS_PROTOCOL', 'https') as 'https' | 'http',
+          auth: {
+            projectId: this.configService.get<string>('IPFS_PROJECT_ID'),
+            projectSecret: this.configService.get<string>('IPFS_PROJECT_SECRET'),
+            apiKey: this.configService.get<string>('IPFS_API_KEY'),
+            apiSecret: this.configService.get<string>('IPFS_API_SECRET'),
+          },
+          gatewayUrl: this.configService.get<string>('IPFS_GATEWAY_URL', 'https://ipfs.io/ipfs'),
+        };
+      case 'arweave':
+        return {
+          ...baseConfig,
+          host: this.configService.get<string>('ARWEAVE_HOST', 'arweave.net'),
+          port: Number(this.configService.get<string>('ARWEAVE_PORT', '443')),
+          protocol: this.configService.get<string>('ARWEAVE_PROTOCOL', 'https') as 'https' | 'http',
+          walletJson: this.configService.get<string>('ARWEAVE_WALLET_JSON'),
+          gatewayUrl: this.configService.get<string>('ARWEAVE_GATEWAY_URL', 'https://arweave.net'),
         };
       default:
         throw new Error(`Unsupported provider: ${provider}`);
