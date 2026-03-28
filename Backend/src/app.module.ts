@@ -57,6 +57,7 @@ import { DataResidencyModule } from './data-residency/data-residency.module';
 import { PredictiveMaintenanceModule } from './predictive-maintenance/predictive-maintenance.module';
 import { SecretsManagementModule } from './secrets-management/secrets-management.module';
 import { TransactionQueueModule } from './transaction-queue/transaction-queue.module';
+import { SupplyChainFinanceModule } from './supply-chain-finance/supply-chain-finance.module';
 import { LiquidityAggregationModule } from './liquidity-aggregation/liquidity-aggregation.module';
 import { CrossChainSwapModule } from './cross-chain-swap/cross-chain-swap.module';
 import { PredictiveSettlementModule } from './predictive-settlement/predictive-settlement.module';
@@ -140,6 +141,7 @@ import { PredictiveSettlementModule } from './predictive-settlement/predictive-s
     DataResidencyModule,
     PredictiveMaintenanceModule,
     SecretsManagementModule,
+    SupplyChainFinanceModule,
     LiquidityAggregationModule,
     CrossChainSwapModule,
       PredictiveSettlementModule,

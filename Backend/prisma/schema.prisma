@@ -1274,6 +1274,177 @@ model Invoice {
   @@map("invoices")
 }
 
+model SupplyChainFinanceInvoice {
+  id                     String                            @id @default(cuid())
+  tenantId               String?                           @map("tenant_id")
+  sellerUserId           String                            @map("seller_user_id")
+  buyerUserId            String?                           @map("buyer_user_id")
+  invoiceNumber          String                            @map("invoice_number")
+  debtorName             String                            @map("debtor_name")
+  debtorEmail            String?                           @map("debtor_email")
+  amount                 Decimal                           @db.Decimal(18, 2)
+  currency               String                            @default("USD")
+  issueDate              DateTime                          @map("issue_date")
+  dueDate                DateTime                          @map("due_date")
+  uploadedDocumentUrl    String                            @map("uploaded_document_url")
+  documentHash           String?                           @map("document_hash")
+  description            String?
+  metadata               Json?
+  status                 SupplyChainFinanceInvoiceStatus   @default(DRAFT)
+  verificationStatus     SupplyChainVerificationStatus     @default(PENDING) @map("verification_status")
+  buyerApprovalStatus    SupplyChainApprovalStatus         @default(PENDING) @map("buyer_approval_status")
+  complianceStatus       SupplyChainComplianceStatus       @default(PENDING) @map("compliance_status")
+  accountingProvider     SupplyChainAccountingProvider?    @map("accounting_provider")
+  accountingReference    String?                           @map("accounting_reference")
+  externalInvoiceId      String?                           @map("external_invoice_id")
+  nftTokenId             String?                           @unique @map("nft_token_id")
+  nftMetadataUri         String?                           @map("nft_metadata_uri")
+  smartContractAddress   String?                           @map("smart_contract_address")
+  riskScore              Int                               @default(50) @map("risk_score")
+  riskGrade              SupplyChainRiskGrade              @default(C) @map("risk_grade")
+  advanceRateBps         Int                               @default(8000) @map("advance_rate_bps")
+  reserveAmount          Decimal                           @default(0) @db.Decimal(18, 2) @map("reserve_amount")
+  financedAmount         Decimal                           @default(0) @db.Decimal(18, 2) @map("financed_amount")
+  expectedYieldBps       Int                               @default(0) @map("expected_yield_bps")
+  regulatoryFlags        Json?                             @map("regulatory_flags")
+  verifiedAt             DateTime?                         @map("verified_at")
+  approvedAt             DateTime?                         @map("approved_at")
+  tokenizedAt            DateTime?                         @map("tokenized_at")
+  fundedAt               DateTime?                         @map("funded_at")
+  settledAt              DateTime?                         @map("settled_at")
+  defaultedAt            DateTime?                         @map("defaulted_at")
+  createdAt              DateTime                          @default(now()) @map("created_at")
+  updatedAt              DateTime                          @updatedAt @map("updated_at")
+
+  verifications          SupplyChainInvoiceVerification[]
+  auctions               SupplyChainDiscountAuction[]
+  waterfalls             SupplyChainPaymentWaterfall[]
+  collections            SupplyChainCollectionCase[]
+
+  @@unique([sellerUserId, invoiceNumber])
+  @@index([tenantId, createdAt])
+  @@index([sellerUserId, status])
+  @@index([buyerUserId, buyerApprovalStatus])
+  @@index([verificationStatus, complianceStatus])
+  @@map("scf_invoices")
+}
+
+model SupplyChainInvoiceVerification {
+  id                 String                         @id @default(cuid())
+  invoiceId          String                         @map("invoice_id")
+  invoice            SupplyChainFinanceInvoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  verificationType   SupplyChainVerificationType    @default(DOCUMENT_REVIEW) @map("verification_type")
+  status             SupplyChainVerificationStatus  @default(PENDING)
+  reviewerUserId     String?                        @map("reviewer_user_id")
+  notes              String?
+  verificationData   Json?                          @map("verification_data")
+  createdAt          DateTime                       @default(now()) @map("created_at")
+  updatedAt          DateTime                       @updatedAt @map("updated_at")
+
+  @@index([invoiceId, status])
+  @@map("scf_invoice_verifications")
+}
+
+model SupplyChainDiscountAuction {
+  id                   String                           @id @default(cuid())
+  invoiceId            String                           @map("invoice_id")
+  invoice              SupplyChainFinanceInvoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  reserveDiscountBps   Int                              @default(1200) @map("reserve_discount_bps")
+  minimumBidAmount     Decimal                          @db.Decimal(18, 2) @map("minimum_bid_amount")
+  fundingTargetAmount  Decimal                          @db.Decimal(18, 2) @map("funding_target_amount")
+  startsAt             DateTime                         @map("starts_at")
+  endsAt               DateTime                         @map("ends_at")
+  status               SupplyChainAuctionStatus         @default(DRAFT)
+  winningBidId         String?                          @unique @map("winning_bid_id")
+  createdAt            DateTime                         @default(now()) @map("created_at")
+  updatedAt            DateTime                         @updatedAt @map("updated_at")
+
+  bids                 SupplyChainAuctionBid[]           @relation("AuctionBids")
+  winningBid           SupplyChainAuctionBid?           @relation("WinningAuctionBid", fields: [winningBidId], references: [id], onDelete: SetNull)
+  waterfall            SupplyChainPaymentWaterfall?
+
+  @@index([invoiceId, status])
+  @@index([status, endsAt])
+  @@map("scf_discount_auctions")
+}
+
+model SupplyChainAuctionBid {
+  id                  String                         @id @default(cuid())
+  auctionId           String                         @map("auction_id")
+  auction             SupplyChainDiscountAuction     @relation("AuctionBids", fields: [auctionId], references: [id], onDelete: Cascade)
+  investorUserId      String                         @map("investor_user_id")
+  investorWallet      String?                        @map("investor_wallet")
+  discountRateBps     Int                            @map("discount_rate_bps")
+  bidAmount           Decimal                        @db.Decimal(18, 2) @map("bid_amount")
+  expectedYieldBps    Int                            @map("expected_yield_bps")
+  status              SupplyChainBidStatus           @default(ACTIVE)
+  metadata            Json?
+  createdAt           DateTime                       @default(now()) @map("created_at")
+  updatedAt           DateTime                       @updatedAt @map("updated_at")
+
+  winningAuction      SupplyChainDiscountAuction?    @relation("WinningAuctionBid")
+
+  @@index([auctionId, status])
+  @@index([investorUserId, createdAt])
+  @@map("scf_auction_bids")
+}
+
+model SupplyChainPaymentWaterfall {
+  id                        String                              @id @default(cuid())
+  invoiceId                 String                              @map("invoice_id")
+  invoice                   SupplyChainFinanceInvoice           @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  auctionId                 String?                             @unique @map("auction_id")
+  auction                   SupplyChainDiscountAuction?         @relation(fields: [auctionId], references: [id], onDelete: SetNull)
+  grossPaymentAmount        Decimal                             @db.Decimal(18, 2) @map("gross_payment_amount")
+  servicingFeeAmount        Decimal                             @default(0) @db.Decimal(18, 2) @map("servicing_fee_amount")
+  platformFeeAmount         Decimal                             @default(0) @db.Decimal(18, 2) @map("platform_fee_amount")
+  investorPayoutAmount      Decimal                             @default(0) @db.Decimal(18, 2) @map("investor_payout_amount")
+  sellerResidualAmount      Decimal                             @default(0) @db.Decimal(18, 2) @map("seller_residual_amount")
+  status                    SupplyChainWaterfallStatus          @default(PENDING)
+  distributionTransactionId String?                             @map("distribution_transaction_id")
+  distributionPayload       Json?                               @map("distribution_payload")
+  createdAt                 DateTime                            @default(now()) @map("created_at")
+  updatedAt                 DateTime                            @updatedAt @map("updated_at")
+
+  @@index([invoiceId, status])
+  @@map("scf_payment_waterfalls")
+}
+
+model SupplyChainCollectionCase {
+  id                    String                             @id @default(cuid())
+  invoiceId             String                             @map("invoice_id")
+  invoice               SupplyChainFinanceInvoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  status                SupplyChainCollectionStatus        @default(OPEN)
+  assignedAgency        String?                            @map("assigned_agency")
+  outstandingAmount     Decimal                            @db.Decimal(18, 2) @map("outstanding_amount")
+  recoveredAmount       Decimal                            @default(0) @db.Decimal(18, 2) @map("recovered_amount")
+  notes                 String?
+  openedAt              DateTime                           @default(now()) @map("opened_at")
+  lastActionAt          DateTime                           @default(now()) @map("last_action_at")
+  resolvedAt            DateTime?                          @map("resolved_at")
+
+  @@index([invoiceId, status])
+  @@map("scf_collection_cases")
+}
+
+model SupplyChainAccountingConnection {
+  id                      String                          @id @default(cuid())
+  tenantId                String?                         @map("tenant_id")
+  sellerUserId            String                          @map("seller_user_id")
+  provider                SupplyChainAccountingProvider
+  externalOrganizationId  String                          @map("external_organization_id")
+  status                  SupplyChainIntegrationStatus    @default(CONNECTED)
+  credentials             Json?
+  metadata                Json?
+  lastSyncAt              DateTime?                       @map("last_sync_at")
+  createdAt               DateTime                        @default(now()) @map("created_at")
+  updatedAt               DateTime                        @updatedAt @map("updated_at")
+
+  @@unique([sellerUserId, provider])
+  @@index([tenantId, provider])
+  @@map("scf_accounting_connections")
+}
+
 model PaymentMethod {
   id                    String   @id @default(uuid())
   tenantId              String   @unique @map("tenant_id")
@@ -1333,6 +1504,96 @@ enum WebhookSubscriptionStatus {
   ACTIVE
   PAUSED
   DISABLED
+}
+
+enum SupplyChainFinanceInvoiceStatus {
+  DRAFT
+  PENDING_VERIFICATION
+  VERIFIED
+  TOKENIZED
+  AUCTION_LIVE
+  FUNDED
+  SETTLED
+  DEFAULTED
+  COLLECTIONS
+  REJECTED
+}
+
+enum SupplyChainVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  MANUAL_REVIEW
+}
+
+enum SupplyChainVerificationType {
+  DOCUMENT_REVIEW
+  ACCOUNTING_MATCH
+  BUYER_CONFIRMATION
+  AML_SCREENING
+}
+
+enum SupplyChainApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SupplyChainComplianceStatus {
+  PENDING
+  PASSED
+  FAILED
+  NEEDS_REVIEW
+}
+
+enum SupplyChainAccountingProvider {
+  QUICKBOOKS
+  XERO
+}
+
+enum SupplyChainRiskGrade {
+  A
+  B
+  C
+  D
+  E
+}
+
+enum SupplyChainAuctionStatus {
+  DRAFT
+  LIVE
+  CLOSED
+  AWARDED
+  CANCELLED
+}
+
+enum SupplyChainBidStatus {
+  ACTIVE
+  WINNING
+  OUTBID
+  REJECTED
+  WITHDRAWN
+}
+
+enum SupplyChainWaterfallStatus {
+  PENDING
+  DISTRIBUTED
+  SETTLED
+  DEFAULTED
+}
+
+enum SupplyChainCollectionStatus {
+  OPEN
+  NEGOTIATING
+  ESCALATED
+  RECOVERED
+  WRITTEN_OFF
+}
+
+enum SupplyChainIntegrationStatus {
+  CONNECTED
+  DEGRADED
+  DISCONNECTED
 }
 
 enum WebhookDeliveryStatus {
