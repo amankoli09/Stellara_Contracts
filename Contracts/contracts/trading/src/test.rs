@@ -562,13 +562,7 @@ fn test_batch_trade_execution() {
     orders.push_back((symbol_short!("BTCUSD"), 200_000i128, 49_500i128, false));
 
     // Execute batch trade
-    let trade_ids = client.trade_batch(
-        &trader,
-        &orders,
-        &token_id,
-        &0i128,
-        &fee_recipient,
-    );
+    let trade_ids = client.trade_batch(&trader, &orders, &token_id, &0i128, &fee_recipient);
 
     assert_eq!(trade_ids.len(), 3);
     assert_eq!(trade_ids.get(0).unwrap(), 1);
@@ -595,13 +589,7 @@ fn test_batch_trade_empty_orders() {
 
     let orders = Vec::new(&env);
 
-    let trade_ids = client.trade_batch(
-        &trader,
-        &orders,
-        &token_id,
-        &0i128,
-        &fee_recipient,
-    );
+    let trade_ids = client.trade_batch(&trader, &orders, &token_id, &0i128, &fee_recipient);
 
     assert_eq!(trade_ids.len(), 0);
 }
@@ -622,13 +610,7 @@ fn test_batch_trade_invalid_amount() {
     orders.push_back((symbol_short!("BTCUSD"), 1_000_000i128, 50_000i128, true));
     orders.push_back((symbol_short!("ETHUSD"), -500_000i128, 3_000i128, true)); // Invalid
 
-    let result = client.try_trade_batch(
-        &trader,
-        &orders,
-        &token_id,
-        &0i128,
-        &fee_recipient,
-    );
+    let result = client.try_trade_batch(&trader, &orders, &token_id, &0i128, &fee_recipient);
 
     assert!(result.is_err());
 }
@@ -664,7 +646,7 @@ fn test_batch_trade_gas_efficiency() {
     // Reset contract for batch test
     let contract_id = env.register_contract(None, UpgradeableTradingContract);
     let client2 = UpgradeableTradingContractClient::new(&env, &contract_id);
-    
+
     let admin = Address::generate(&env);
     let approver = Address::generate(&env);
     let executor = Address::generate(&env);
@@ -676,7 +658,12 @@ fn test_batch_trade_gas_efficiency() {
     env.budget().reset_default();
     let mut orders = Vec::new(&env);
     for i in 0..3 {
-        orders.push_back((symbol_short!("BTCUSD"), 1_000_000i128 + i as i128, 50_000i128, true));
+        orders.push_back((
+            symbol_short!("BTCUSD"),
+            1_000_000i128 + i as i128,
+            50_000i128,
+            true,
+        ));
     }
     client2.trade_batch(&trader, &orders, &token_id, &0i128, &fee_recipient);
     let batch_cpu = env.budget().cpu_instruction_cost();
@@ -728,4 +715,3 @@ fn test_optimized_storage_access_pattern() {
     let stats = client.get_stats();
     assert_eq!(stats.total_trades, 1);
 }
-

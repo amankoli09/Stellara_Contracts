@@ -246,19 +246,28 @@ fn test_gas_benchmark_batch_vs_individual() {
     let (batch_cpu, batch_mem) = GasBenchmark::bench_batch_trade(&env, 3);
 
     println!("\nBatch vs Individual Trade Comparison:");
-    println!("  3 Individual Trades - CPU: {}, MEM: {}", individual_total_cpu, individual_total_mem);
-    println!("  1 Batch Trade (3 orders) - CPU: {}, MEM: {}", batch_cpu, batch_mem);
-    
+    println!(
+        "  3 Individual Trades - CPU: {}, MEM: {}",
+        individual_total_cpu, individual_total_mem
+    );
+    println!(
+        "  1 Batch Trade (3 orders) - CPU: {}, MEM: {}",
+        batch_cpu, batch_mem
+    );
+
     let cpu_savings = if batch_cpu < individual_total_cpu {
         ((individual_total_cpu - batch_cpu) as f64 / individual_total_cpu as f64) * 100.0
     } else {
         0.0
     };
-    
+
     println!("  CPU Savings: {:.2}%", cpu_savings);
 
     // Batch should be more efficient
-    assert!(batch_cpu < individual_total_cpu, "Batch trade should use less CPU");
+    assert!(
+        batch_cpu < individual_total_cpu,
+        "Batch trade should use less CPU"
+    );
 }
 
 impl GasBenchmark {
@@ -305,4 +314,3 @@ impl GasBenchmark {
         (cpu_insns, mem_bytes)
     }
 }
-

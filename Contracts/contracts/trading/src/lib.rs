@@ -201,7 +201,7 @@ fn check_and_consume_trade_rate_limit(env: &Env, trader: &Address) -> Result<(),
 
         // OPTIMIZATION 4: Read both counters in sequence (can't batch different keys)
         let current_user = get_user_window_usage(env, trader, window);
-        
+
         // OPTIMIZATION 5: Fast-fail on user limit before checking global
         if current_user >= allowed_user_limit {
             return Err(TradeError::RateLimitExceeded);
