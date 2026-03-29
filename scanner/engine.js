@@ -270,7 +270,6 @@ function runScan(targetPaths = []) {
 
 module.exports = {
   collectFiles,
-  scanRustSource,
   scanRustFile,
   scanWasmBuffer,
   scanWasmFile,
