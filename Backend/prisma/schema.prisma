@@ -50,6 +50,11 @@ model User {
   tenantMembers       TenantMember[]
   experimentAssignments ExperimentAssignment[]
   verificationSessions VerificationSession[]
+  userLocations        UserLocation[]
+  marginAccount        MarginAccount?
+  clearingMarginAccounts ClearingMarginAccount[]
+  defaultFundContributions DefaultFundContribution[]
+  syntheticCDPs        SyntheticCDP[]
   crossChainSwaps      CrossChainSwap[]
   affiliate            Affiliate?
   referredSignups      ReferralSignup[]      @relation("ReferredUser")
@@ -480,7 +485,7 @@ model Document {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
   extractions DocumentExtraction[]
-  audits     AuditLog[]
+  audits     DocumentAuditLog[]
   @@map("documents")
 }
 
@@ -495,14 +500,14 @@ model DocumentExtraction {
   @@map("document_extractions")
 }
 
-model AuditLog {
+model DocumentAuditLog {
   id         String   @id @default(cuid())
   documentId String?  @map("document_id")
   document   Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
   action     String
   metadata   Json?
   createdAt  DateTime @default(now()) @map("created_at")
-  @@map("audit_logs")
+  @@map("document_audit_logs")
 }
 
 model NotificationDelivery {
@@ -1272,6 +1277,35 @@ model Subscription {
   @@map("subscriptions")
 }
 
+model RevenueRecognition {
+  id             String       @id @default(uuid())
+  subscriptionId String?      @map("subscription_id")
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  invoiceId      String?      @map("invoice_id")
+  invoice        Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount         Int
+  currency       String       @default("usd")
+  recognizedAt   DateTime     @map("recognized_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([subscriptionId])
+  @@index([invoiceId])
+  @@map("revenue_recognitions")
+}
+
+model ProrationAdjustment {
+  id             String       @id @default(uuid())
+  subscriptionId String       @map("subscription_id")
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  amount         Int
+  description    String?
+  appliedAt      DateTime     @map("applied_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([subscriptionId])
+  @@map("proration_adjustments")
+}
+
 model UsageRecord {
   id                  String       @id @default(uuid())
   subscriptionId      String       @map("subscription_id")
@@ -1831,6 +1865,7 @@ enum DocumentType {
   PASSPORT
   DRIVERS_LICENSE
   NATIONAL_ID
+}
 
 // ─── Predictive Settlement Engine ───────────────────────────────────────────
 
@@ -1994,7 +2029,7 @@ model ChainAdapter {
   blockchain            SupportedBlockchain @unique
   rpcEndpoint           String   @map("rpc_endpoint")
   wsEndpoint            String?  @map("ws_endpoint")
-  chainId               String   @map("chain_id")
+  chainId               String   @unique @map("chain_id")
   explorerUrl           String?  @map("explorer_url")
   isActive              Boolean  @default(true) @map("is_active")
   finalityBlocks        Int      @default(12) @map("finality_blocks") // blocks until finality
@@ -2334,6 +2369,230 @@ enum CDPStatus {
   CLOSED
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Longevity Research & Prediction Markets (issue #497)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model LongevityResearch {
+  id            String         @id @default(cuid())
+  externalId    String         @unique @map("external_id")
+  source        ResearchSource
+  title         String
+  authors       String[]
+  abstract      String?
+  doi           String?        @unique
+  url           String?
+  journal       String?
+  publishedAt   DateTime?      @map("published_at")
+  tags          String[]
+  isOpenAccess  Boolean        @default(false) @map("is_open_access")
+  citationCount Int            @default(0) @map("citation_count")
+  impactScore   Decimal        @default(0) @db.Decimal(6, 2) @map("impact_score")
+  expertRatings ExpertLongevityRating[]
+  fundingAllocations FundingAllocation[]
+  discussions   ResearchDiscussion[]
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  @@index([source])
+  @@index([publishedAt])
+  @@index([isOpenAccess])
+  @@map("longevity_research")
+}
+
+enum ResearchSource {
+  PUBMED
+  BIORXIV
+  MEDRXIV
+  MANUAL
+}
+
+model ClinicalTrial {
+  id                  String      @id @default(cuid())
+  trialId             String      @unique @map("trial_id")
+  title               String
+  sponsor             String?
+  phase               TrialPhase?
+  status              TrialStatus @default(UNKNOWN)
+  intervention        String
+  condition           String
+  startDate           DateTime?   @map("start_date")
+  estimatedCompletion DateTime?   @map("estimated_completion")
+  enrollment          Int?
+  primaryEndpoint     String?     @map("primary_endpoint")
+  results             Json?
+  sourceUrl           String?     @map("source_url")
+  lastSynced          DateTime    @default(now()) @map("last_synced")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([intervention])
+  @@index([phase])
+  @@map("clinical_trials")
+}
+
+enum TrialPhase {
+  PHASE1
+  PHASE2
+  PHASE3
+  PHASE4
+  NOT_APPLICABLE
+}
+
+enum TrialStatus {
+  NOT_YET_RECRUITING
+  RECRUITING
+  ENROLLING_BY_INVITATION
+  ACTIVE_NOT_RECRUITING
+  COMPLETED
+  SUSPENDED
+  TERMINATED
+  WITHDRAWN
+  UNKNOWN
+}
+
+model LongevityMarket {
+  id             String          @id @default(cuid())
+  title          String
+  description    String
+  category       MarketCategory
+  resolveDate    DateTime?       @map("resolve_date")
+  status         MarketStatus    @default(OPEN)
+  totalLiquidity Decimal         @default(0) @db.Decimal(20, 6) @map("total_liquidity")
+  yesShares      Decimal         @default(0) @db.Decimal(20, 6) @map("yes_shares")
+  noShares       Decimal         @default(0) @db.Decimal(20, 6) @map("no_shares")
+  yesPrice       Decimal         @default(0.5) @db.Decimal(10, 6) @map("yes_price")
+  noPrice        Decimal         @default(0.5) @db.Decimal(10, 6) @map("no_price")
+  resolvedAt     DateTime?       @map("resolved_at")
+  resolution     Boolean?
+  createdBy      String?         @map("created_by")
+  positions      MarketPosition[]
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([category])
+  @@map("longevity_markets")
+}
+
+enum MarketCategory {
+  LIFESPAN_RECORD
+  THERAPY_APPROVAL
+  BIOMARKER_BREAKTHROUGH
+  TRIAL_OUTCOME
+  POLICY_CHANGE
+  SCIENTIFIC_CONSENSUS
+}
+
+enum MarketStatus {
+  OPEN
+  CLOSED
+  RESOLVED
+  CANCELLED
+}
+
+model MarketPosition {
+  id          String          @id @default(cuid())
+  marketId    String          @map("market_id")
+  market      LongevityMarket @relation(fields: [marketId], references: [id])
+  userId      String          @map("user_id")
+  position    PositionType
+  amount      Decimal         @db.Decimal(20, 6)
+  shares      Decimal         @db.Decimal(20, 6)
+  priceAtTime Decimal         @map("price_at_time") @db.Decimal(10, 6)
+  payout      Decimal?        @db.Decimal(20, 6)
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  @@index([marketId, position])
+  @@index([userId])
+  @@map("market_positions")
+}
+
+enum PositionType {
+  YES
+  NO
+}
+
+model ExpertLongevityRating {
+  id          String            @id @default(cuid())
+  researchId  String            @map("research_id")
+  research    LongevityResearch @relation(fields: [researchId], references: [id])
+  expertName  String            @map("expert_name")
+  institution String?
+  rating      Int
+  confidence  Int
+  commentary  String?
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  @@index([researchId])
+  @@map("expert_longevity_ratings")
+}
+
+model FundingAllocation {
+  id          String            @id @default(cuid())
+  researchId  String            @map("research_id")
+  research    LongevityResearch @relation(fields: [researchId], references: [id])
+  allocatorId String            @map("allocator_id")
+  amount      Decimal           @db.Decimal(20, 6)
+  currency    String            @default("USD")
+  rationale   String?
+  status      FundingStatus     @default(PENDING)
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  @@index([researchId])
+  @@index([allocatorId])
+  @@map("funding_allocations")
+}
+
+enum FundingStatus {
+  PENDING
+  APPROVED
+  DISBURSED
+  REJECTED
+}
+
+model ResearchDiscussion {
+  id         String              @id @default(cuid())
+  researchId String?             @map("research_id")
+  research   LongevityResearch?  @relation(fields: [researchId], references: [id])
+  authorId   String              @map("author_id")
+  title      String
+  content    String
+  category   DiscussionCategory  @default(GENERAL)
+  upvotes    Int                 @default(0)
+  replies    DiscussionReply[]
+  createdAt  DateTime            @default(now()) @map("created_at")
+  updatedAt  DateTime            @updatedAt @map("updated_at")
+
+  @@index([researchId])
+  @@index([authorId])
+  @@index([category])
+  @@map("research_discussions")
+}
+
+enum DiscussionCategory {
+  GENERAL
+  DEBATE
+  QUESTION
+  ANALYSIS
+  FUNDING_REQUEST
+}
+
+model DiscussionReply {
+  id           String             @id @default(cuid())
+  discussionId String             @map("discussion_id")
+  discussion   ResearchDiscussion @relation(fields: [discussionId], references: [id])
+  authorId     String             @map("author_id")
+  content      String
+  upvotes      Int                @default(0)
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  @@index([discussionId])
+  @@map("discussion_replies")
 // ─── Affiliate Marketing Platform Models ───────────────────────────────────────
 
 model Affiliate {

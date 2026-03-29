@@ -70,6 +70,8 @@ import { QuantumCryptoModule } from './crypto/quantum/quantum-crypto.module';
 import { AIAuditorModule } from './ai-auditor/ai-auditor.module';
 import { VoiceTradingModule } from './voice-trading/voice-trading.module';
 import { SyntheticAssetsModule } from './synthetic-assets/synthetic-assets.module';
+import { LongevityModule } from './longevity/longevity.module';
+
 import { MLModelServingModule } from './ml-model-serving/ml-model-serving.module';
 import { SiemModule } from './siem/siem.module';
 
@@ -166,6 +168,7 @@ import { SiemModule } from './siem/siem.module';
     CrossChainRouterModule,
     VoiceTradingModule,
     SyntheticAssetsModule,
+    LongevityModule,
     MLModelServingModule,
     SiemModule,
 
