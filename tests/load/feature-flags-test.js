@@ -4,6 +4,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate } from 'k6/metrics';
+import { textSummary } from 'https://jslib.k6.io/k6-summary/0.1.0/index.js';
 
 // Custom metrics
 export let featureFlagErrorRate = new Rate('feature_flag_errors');

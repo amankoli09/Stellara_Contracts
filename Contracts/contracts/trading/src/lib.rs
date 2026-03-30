@@ -206,17 +206,77 @@ fn require_initialized(env: &Env) -> Result<(), TradeError> {
     }
 }
 
-fn ensure_not_paused(env: &Env) -> Result<(), TradeError> {
-    if env
+fn require_trade_not_paused(env: &Env, func_name: Symbol) -> Result<(), TradeError> {
+    let state = CircuitBreaker::get_state(env);
+
+    if state.pause_level == PauseLevel::Full {
+        return Err(TradeError::ContractPaused);
+    }
+
+    if state.pause_level == PauseLevel::Partial {
+        let paused_funcs: soroban_sdk::Map<Symbol, bool> = env
+            .storage()
+            .persistent()
+            .get(&symbol_short!("cb_p_fns"))
+            .unwrap_or_else(|| soroban_sdk::Map::new(env));
+
+        if paused_funcs.get(func_name).unwrap_or(false) {
+            return Err(TradeError::ContractPaused);
+        }
+    }
+
+    Ok(())
+}
+
+fn set_trade_pause_level(env: &Env, level: PauseLevel) {
+    let mut state = CircuitBreaker::get_state(env);
+    state.pause_level = level;
+    env.storage()
+        .persistent()
+        .set(&symbol_short!("cb_state"), &state);
+
+    env.events()
+        .publish((symbol_short!("cb_pause"),), (level as u32,));
+}
+
+fn pause_trade_function(env: &Env, func_name: Symbol) {
+    let mut paused_funcs: soroban_sdk::Map<Symbol, bool> = env
         .storage()
         .persistent()
-        .get(&storage_keys::PAUSE)
-        .unwrap_or(false)
-    {
-        Err(TradeError::ContractPaused)
-    } else {
-        Ok(())
+        .get(&symbol_short!("cb_p_fns"))
+        .unwrap_or_else(|| soroban_sdk::Map::new(env));
+
+    paused_funcs.set(func_name.clone(), true);
+    env.storage()
+        .persistent()
+        .set(&symbol_short!("cb_p_fns"), &paused_funcs);
+
+    let mut state = CircuitBreaker::get_state(env);
+    if state.pause_level == PauseLevel::None {
+        state.pause_level = PauseLevel::Partial;
+        env.storage()
+            .persistent()
+            .set(&symbol_short!("cb_state"), &state);
     }
+
+    env.events()
+        .publish((symbol_short!("cb_f_psd"), func_name), ());
+}
+
+fn unpause_trade_function(env: &Env, func_name: Symbol) {
+    let mut paused_funcs: soroban_sdk::Map<Symbol, bool> = env
+        .storage()
+        .persistent()
+        .get(&symbol_short!("cb_p_fns"))
+        .unwrap_or_else(|| soroban_sdk::Map::new(env));
+
+    paused_funcs.remove(func_name.clone());
+    env.storage()
+        .persistent()
+        .set(&symbol_short!("cb_p_fns"), &paused_funcs);
+
+    env.events()
+        .publish((symbol_short!("cb_f_ups"), func_name), ());
 }
 
 fn read_rate_limit_config(env: &Env) -> RateLimitConfig {
@@ -326,13 +386,9 @@ fn ensure_tradeable(
 ) -> Result<soroban_sdk::storage::Persistent, TradeError> {
     require_initialized(env)?;
     check_and_consume_trade_rate_limit(env, trader)?;
+    require_trade_not_paused(env, symbol_short!("trade"))?;
 
-    let storage = env.storage().persistent();
-    if storage.get(&storage_keys::PAUSE).unwrap_or(false) {
-        return Err(TradeError::ContractPaused);
-    }
-
-    Ok(storage)
+    Ok(env.storage().persistent())
 }
 
 fn next_order_id(env: &Env) -> u64 {
@@ -665,8 +721,7 @@ fn match_limit_order(env: &Env, incoming: &mut LimitOrder) -> Result<(), TradeEr
         );
     }
 
-        Ok(())
-    }
+    Ok(())
 }
 
 #[contractimpl]
@@ -752,6 +807,7 @@ impl UpgradeableTradingContract {
         }
 
         let _storage = ensure_tradeable(&env, &trader)?;
+        CircuitBreaker::track_activity(&env, amount);
 
         FeeManager::collect_fee(&env, &fee_token, &trader, &fee_recipient, fee_amount)
             .map_err(|_| TradeError::InsufficientBalance)?;
@@ -784,8 +840,8 @@ impl UpgradeableTradingContract {
     ) -> Result<u64, TradeError> {
         trader.require_auth();
         require_initialized(&env)?;
-        ensure_not_paused(&env)?;
         check_and_consume_trade_rate_limit(&env, &trader)?;
+        require_trade_not_paused(&env, symbol_short!("trade"))?;
 
         if amount <= 0 {
             return Err(TradeError::InvalidAmount);
@@ -1085,12 +1141,49 @@ impl UpgradeableTradingContract {
         MAX_BATCH_SIZE
     }
 
+    /// Set circuit breaker pause level (ACL protected)
+    pub fn set_pause_level(env: Env, admin: Address, level: PauseLevel) -> Result<(), TradeError> {
+        admin.require_auth();
+        require_initialized(&env)?;
+        ACL::require_permission(&env, &admin, &Symbol::new(&env, "pause"));
+        set_trade_pause_level(&env, level);
+        Ok(())
+    }
+
+    /// Pause specific function (ACL protected)
+    pub fn pause_function(env: Env, admin: Address, func_name: Symbol) -> Result<(), TradeError> {
+        admin.require_auth();
+        require_initialized(&env)?;
+        ACL::require_permission(&env, &admin, &Symbol::new(&env, "pause"));
+        pause_trade_function(&env, func_name);
+        Ok(())
+    }
+
+    /// Unpause specific function (ACL protected)
+    pub fn unpause_function(env: Env, admin: Address, func_name: Symbol) -> Result<(), TradeError> {
+        admin.require_auth();
+        require_initialized(&env)?;
+        ACL::require_permission(&env, &admin, &Symbol::new(&env, "unpause"));
+        unpause_trade_function(&env, func_name);
+        Ok(())
+    }
+
+    /// Get current circuit breaker state
+    pub fn get_cb_state(env: Env) -> CircuitBreakerState {
+        CircuitBreaker::get_state(&env)
+    }
+
+    /// Get current circuit breaker config
+    pub fn get_cb_config(env: Env) -> CircuitBreakerConfig {
+        CircuitBreaker::get_config(&env)
+    }
+
     /// Pause the contract (ACL protected)
     pub fn pause(env: Env, admin: Address) -> Result<(), TradeError> {
         admin.require_auth();
         require_initialized(&env)?;
         ACL::require_permission(&env, &admin, &Symbol::new(&env, "pause"));
-        CircuitBreaker::set_pause_level(&env, admin, PauseLevel::Full);
+        set_trade_pause_level(&env, PauseLevel::Full);
         Ok(())
     }
 
@@ -1099,7 +1192,7 @@ impl UpgradeableTradingContract {
         admin.require_auth();
         require_initialized(&env)?;
         ACL::require_permission(&env, &admin, &Symbol::new(&env, "unpause"));
-        CircuitBreaker::set_pause_level(&env, admin, PauseLevel::None);
+        set_trade_pause_level(&env, PauseLevel::None);
         Ok(())
     }
 

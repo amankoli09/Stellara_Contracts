@@ -31,8 +31,8 @@ fn setup_contract(
     approvers.push_back(approver.clone());
 
     let cb_config = CircuitBreakerConfig {
-        max_volume_per_period: 10_000_000i128,
-        max_tx_count_per_period: 10u64,
+        max_volume_per_period: 1_000_000_000i128,
+        max_tx_count_per_period: 100u64,
         period_duration: 3600u64,
     };
 
@@ -92,9 +92,9 @@ fn test_contract_cannot_be_initialized_twice() {
     let mut approvers = Vec::new(&env);
     approvers.push_back(approver.clone());
 
-    client.init(&admin, &approvers, &executor);
+    client.init(&admin, &approvers, &executor, &cb_config);
 
-    let result = client.try_init(&admin, &approvers, &executor);
+    let result = client.try_init(&admin, &approvers, &executor, &cb_config);
     assert!(result.is_err());
 }
 
@@ -695,7 +695,12 @@ fn test_batch_trade_gas_efficiency() {
     let executor = Address::generate(&env);
     let mut approvers = Vec::new(&env);
     approvers.push_back(approver);
-    client2.init(&admin, &approvers, &executor);
+    let cb_config = CircuitBreakerConfig {
+        max_volume_per_period: 1_000_000_000i128,
+        max_tx_count_per_period: 100u64,
+        period_duration: 3600u64,
+    };
+    client2.init(&admin, &approvers, &executor, &cb_config);
 
     env.budget().reset_default();
     let mut orders = Vec::new(&env);

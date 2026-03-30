@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::vesting::{AcademyVestingContract, AcademyVestingContractClient};
+use shared::circuit_breaker::CircuitBreakerConfig;
 use soroban_sdk::token::StellarAssetClient;
 use soroban_sdk::{
     testutils::{Address as _, Ledger},
@@ -9,6 +10,14 @@ use soroban_sdk::{
 
 extern crate std;
 use std::println;
+
+fn default_cb_config() -> CircuitBreakerConfig {
+    CircuitBreakerConfig {
+        max_volume_per_period: 1_000_000_000i128,
+        max_tx_count_per_period: 100u64,
+        period_duration: 3600u64,
+    }
+}
 
 fn setup_claim_env(
     env: &Env,
@@ -28,7 +37,8 @@ fn setup_claim_env(
 
     let contract_id = env.register_contract(None, AcademyVestingContract);
     let client = AcademyVestingContractClient::new(env, &contract_id);
-    client.init(&admin, &reward_token, &governance);
+    let cb_config = default_cb_config();
+    client.init(&admin, &reward_token, &governance, &cb_config);
 
     for amount in [500i128, 750i128, 900i128] {
         client.grant_vesting(&admin, &beneficiary, &amount, &0, &0, &10);

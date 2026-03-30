@@ -309,9 +309,14 @@ impl GasBenchmark {
 
         let mut approvers = Vec::new(env);
         approvers.push_back(approver);
+        let cb_config = CircuitBreakerConfig {
+            max_volume_per_period: 1_000_000_000i128,
+            max_tx_count_per_period: 100u64,
+            period_duration: 3600u64,
+        };
 
         env.mock_all_auths();
-        client.init(&admin, &approvers, &executor);
+        client.init(&admin, &approvers, &executor, &cb_config);
 
         let token_id = env.register_stellar_asset_contract(fee_recipient.clone());
 

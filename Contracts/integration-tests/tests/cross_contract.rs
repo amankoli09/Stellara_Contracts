@@ -73,8 +73,13 @@ fn test_academy_rewards_trigger_social_rewards() {
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
+    let cb_config = CircuitBreakerConfig {
+        max_volume_per_period: 10_000_000,
+        max_tx_count_per_period: 100,
+        period_duration: 3600,
+    };
 
-    academy.initialize(&admin);
+    academy.initialize(&admin, &cb_config);
     social.init(&admin);
 
     academy.create_badge_type(

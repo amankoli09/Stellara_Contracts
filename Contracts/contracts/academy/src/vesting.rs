@@ -1,3 +1,4 @@
+use shared::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
 use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env, Vec};
 
 const MAX_BATCH_CLAIMS: u32 = 25;

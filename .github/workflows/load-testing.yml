@@ -111,6 +111,14 @@ jobs:
           export API_BASE_URL="${{ secrets.STAGING_API_URL }}"
           export TEST_USER_EMAIL="${{ secrets.TEST_USER_EMAIL }}"
           export TEST_USER_PASSWORD="${{ secrets.TEST_USER_PASSWORD }}"
+
+          if [[ -z "$API_BASE_URL" ]]; then
+            echo "Skipping ${{ matrix.test-suite }} because STAGING_API_URL is not configured for this run."
+            echo "## Load Test Results - ${{ matrix.test-suite }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Skipped because \`STAGING_API_URL\` is unavailable for this workflow context." >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
           
           case "${{ needs.setup.outputs.test-type }}" in
             "smoke")

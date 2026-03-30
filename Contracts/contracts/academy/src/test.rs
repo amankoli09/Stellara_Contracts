@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::vesting::{AcademyVestingContract, AcademyVestingContractClient};
+use shared::circuit_breaker::CircuitBreakerConfig;
 use soroban_sdk::token::{Client as TokenClient, StellarAssetClient};
 use soroban_sdk::{
     testutils::{Address as _, Ledger},
@@ -17,6 +18,14 @@ fn create_token(
         TokenClient::new(env, &token_id),
         StellarAssetClient::new(env, &token_id),
     )
+}
+
+fn default_cb_config() -> CircuitBreakerConfig {
+    CircuitBreakerConfig {
+        max_volume_per_period: 1_000_000_000i128,
+        max_tx_count_per_period: 100u64,
+        period_duration: 3600u64,
+    }
 }
 
 fn setup_contract(
@@ -40,7 +49,8 @@ fn setup_contract(
 
     let contract_id = env.register_contract(None, AcademyVestingContract);
     let client = AcademyVestingContractClient::new(env, &contract_id);
-    client.init(&admin, &reward_token, &governance);
+    let cb_config = default_cb_config();
+    client.init(&admin, &reward_token, &governance, &cb_config);
 
     (
         client,
@@ -72,7 +82,8 @@ fn test_contract_cannot_be_initialized_twice() {
         setup_contract(&env);
     let replacement_token = Address::generate(&env);
 
-    let result = client.try_init(&admin, &replacement_token, &governance);
+    let cb_config = default_cb_config();
+    let result = client.try_init(&admin, &replacement_token, &governance, &cb_config);
     assert!(result.is_err());
 }
 

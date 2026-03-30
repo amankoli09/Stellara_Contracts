@@ -772,49 +772,6 @@ impl UpgradeableMessagingContract {
         GovernanceManager::cancel_proposal(&env, proposal_id, admin)
             .map_err(|_| MessagingError::Unauthorized)
     }
-
-    /// Set circuit breaker pause level (admin only)
-    pub fn set_cb_pause_level(
-        env: Env,
-        admin: Address,
-        level: PauseLevel,
-    ) -> Result<(), MessagingError> {
-        admin.require_auth();
-        CircuitBreaker::set_pause_level(&env, admin, level);
-        Ok(())
-    }
-
-    /// Pause specific function (admin only)
-    pub fn pause_cb_function(
-        env: Env,
-        admin: Address,
-        func_name: Symbol,
-    ) -> Result<(), MessagingError> {
-        admin.require_auth();
-        CircuitBreaker::pause_function(&env, admin, func_name);
-        Ok(())
-    }
-
-    /// Unpause specific function (admin only)
-    pub fn unpause_cb_function(
-        env: Env,
-        admin: Address,
-        func_name: Symbol,
-    ) -> Result<(), MessagingError> {
-        admin.require_auth();
-        CircuitBreaker::unpause_function(&env, admin, func_name);
-        Ok(())
-    }
-
-    /// Get current circuit breaker state
-    pub fn get_cb_state(env: Env) -> CircuitBreakerState {
-        CircuitBreaker::get_state(&env)
-    }
-
-    /// Get current circuit breaker config
-    pub fn get_cb_config(env: Env) -> CircuitBreakerConfig {
-        CircuitBreaker::get_config(&env)
-    }
 }
 
 #[cfg(test)]
