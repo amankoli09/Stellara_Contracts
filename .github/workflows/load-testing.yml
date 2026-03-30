@@ -182,10 +182,6 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install dependencies
-        run: |
-          npm install -g @k6/html-reporter
-
       - name: Generate performance analysis
         run: |
           echo "# Performance Analysis Report" >> $GITHUB_STEP_SUMMARY
