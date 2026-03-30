@@ -52,6 +52,7 @@ import { IdentityModule } from './identity/identity.module';
 import { ClearingModule } from './clearing/clearing.module';
 import { CostMonitoringModule } from './cost-monitoring/cost-monitoring.module';
 import { CircuitBreakerModule } from './circuit-breaker/circuit-breaker.module';
+import { ChaosEngineeringModule } from './chaos-engineering/chaos-engineering.module';
 import { DataRetentionModule } from './data-retention/data-retention.module';
 import { DocumentProcessingModule } from './document-processing/document.module';
 import { DataResidencyModule } from './data-residency/data-residency.module';
@@ -141,6 +142,7 @@ import { SiemModule } from './siem/siem.module';
     LiquidityMiningModule,
     MonitoringModule,
     CircuitBreakerModule,
+    ChaosEngineeringModule,
     TransactionQueueModule,
     DataRetentionModule,
     GraphqlModule,
