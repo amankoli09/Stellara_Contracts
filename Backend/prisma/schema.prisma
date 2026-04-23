@@ -260,6 +260,28 @@ model EmailOutbox {
   @@map("email_outbox")
 }
 
+model NotificationOutbox {
+  id             String              @id @default(cuid())
+  notificationId String?             @map("notification_id")
+  userId         String              @map("user_id")
+  channel        NotificationChannel
+  status         DeliveryStatus      @default(PENDING)
+  dedupKey       String              @unique @map("dedup_key")
+  payload        Json
+  attempts       Int                 @default(0)
+  maxAttempts    Int                 @default(3) @map("max_attempts")
+  nextRetryAt    DateTime            @default(now()) @map("next_retry_at")
+  lastAttemptAt  DateTime?           @map("last_attempt_at")
+  retryDisabled  Boolean             @default(false) @map("retry_disabled")
+  lastError      String?             @map("last_error")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  @@index([status, nextRetryAt])
+  @@index([userId, channel])
+  @@map("notification_outbox")
+}
+
 enum NotificationType {
   CONTRIBUTION
   MILESTONE
@@ -268,6 +290,17 @@ enum NotificationType {
 }
 
 enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum NotificationChannel {
+  EMAIL
+  PUSH
+}
+
+enum DeliveryStatus {
   PENDING
   SENT
   FAILED
