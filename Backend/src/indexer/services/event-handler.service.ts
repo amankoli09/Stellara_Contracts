@@ -63,10 +63,16 @@ class MilestoneRejectedHandler implements IEventHandler {
       }
     }
 
-    // Update trust score for the creator
+    // Update trust score and record activity for the creator
     if (project.creatorId) {
+      await this.reputationService.recordActivity(
+        project.creatorId,
+        'FAILED_TRANSACTION',
+        1.0,
+        event.transactionHash,
+      );
       await this.reputationService.updateTrustScore(project.creatorId);
-      this.logger.log(`Updated trust score for creator ${project.creatorId}`);
+      this.logger.log(`Updated reputation and trust score for creator ${project.creatorId}`);
     }
   }
 }
@@ -154,6 +160,7 @@ class ContributionMadeHandler implements IEventHandler {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationService: NotificationService,
+    private readonly reputationService: ReputationService,
   ) { }
 
   validate(event: ParsedContractEvent): boolean {
@@ -220,6 +227,18 @@ class ContributionMadeHandler implements IEventHandler {
       );
     } catch (e) {
       this.logger.error(`Failed to send contribution notification to user ${user.id}: ${e.message}`);
+    }
+
+    // Record reputation activity
+    try {
+      await this.reputationService.recordActivity(
+        user.id,
+        'SUCCESSFUL_TRANSACTION',
+        Number(data.amount),
+        event.transactionHash,
+      );
+    } catch (e) {
+      this.logger.error(`Failed to record reputation activity for user ${user.id}: ${e.message}`);
     }
 
     this.logger.log(`Recorded contribution of ${data.amount} for project ${data.projectId}`);
@@ -297,10 +316,16 @@ class MilestoneApprovedHandler implements IEventHandler {
 
     this.logger.log(`Approved milestone for project ${data.projectId}`);
 
-    // Update trust score for the creator
+    // Update trust score and record activity for the creator
     if (project.creatorId) {
+      await this.reputationService.recordActivity(
+        project.creatorId,
+        'SUCCESSFUL_TRANSACTION',
+        1.0,
+        event.transactionHash,
+      );
       await this.reputationService.updateTrustScore(project.creatorId);
-      this.logger.log(`Updated trust score for creator ${project.creatorId}`);
+      this.logger.log(`Updated reputation and trust score for creator ${project.creatorId}`);
     }
   }
 }
@@ -357,7 +382,10 @@ class ProjectCompletedHandler implements IEventHandler {
   readonly eventType = ContractEventType.PROJECT_COMPLETED;
   private readonly logger = new Logger(ProjectCompletedHandler.name);
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reputationService: ReputationService,
+  ) { }
 
   validate(event: ParsedContractEvent): boolean {
     const data = event.data as unknown as ProjectStatusEvent;
@@ -369,10 +397,31 @@ class ProjectCompletedHandler implements IEventHandler {
 
     this.logger.log(`Processing PROJECT_COMPLETED: Project ${data.projectId}`);
 
-    await this.prisma.project.updateMany({
+    const project = await this.prisma.project.findUnique({
       where: { contractId: data.projectId.toString() },
+    });
+
+    if (!project) {
+      this.logger.warn(`Project ${data.projectId} not found for completion`);
+      return;
+    }
+
+    await this.prisma.project.update({
+      where: { id: project.id },
       data: { status: 'COMPLETED' },
     });
+
+    // Record reputation activity for the creator
+    if (project.creatorId) {
+      await this.reputationService.recordActivity(
+        project.creatorId,
+        'SUCCESSFUL_TRANSACTION',
+        Number(project.goal),
+        event.transactionHash,
+      );
+      await this.reputationService.updateTrustScore(project.creatorId);
+      this.logger.log(`Updated reputation and trust score for creator ${project.creatorId}`);
+    }
 
     this.logger.log(`Marked project ${data.projectId} as completed`);
   }
@@ -385,7 +434,10 @@ class ProjectFailedHandler implements IEventHandler {
   readonly eventType = ContractEventType.PROJECT_FAILED;
   private readonly logger = new Logger(ProjectFailedHandler.name);
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reputationService: ReputationService,
+  ) { }
 
   validate(event: ParsedContractEvent): boolean {
     const data = event.data as unknown as ProjectStatusEvent;
@@ -397,10 +449,31 @@ class ProjectFailedHandler implements IEventHandler {
 
     this.logger.log(`Processing PROJECT_FAILED: Project ${data.projectId}`);
 
-    await this.prisma.project.updateMany({
+    const project = await this.prisma.project.findUnique({
       where: { contractId: data.projectId.toString() },
+    });
+
+    if (!project) {
+      this.logger.warn(`Project ${data.projectId} not found for failure`);
+      return;
+    }
+
+    await this.prisma.project.update({
+      where: { id: project.id },
       data: { status: 'CANCELLED' },
     });
+
+    // Record reputation activity for the creator
+    if (project.creatorId) {
+      await this.reputationService.recordActivity(
+        project.creatorId,
+        'FAILED_TRANSACTION',
+        Number(project.goal),
+        event.transactionHash,
+      );
+      await this.reputationService.updateTrustScore(project.creatorId);
+      this.logger.log(`Updated reputation and trust score for creator ${project.creatorId}`);
+    }
 
     this.logger.log(`Marked project ${data.projectId} as failed/cancelled`);
   }
@@ -427,12 +500,12 @@ export class EventHandlerService implements IEventHandlerRegistry {
    */
   private registerHandlers(): void {
     this.register(new ProjectCreatedHandler(this.prisma));
-    this.register(new ContributionMadeHandler(this.prisma, this.notificationService));
+    this.register(new ContributionMadeHandler(this.prisma, this.notificationService, this.reputationService));
     this.register(new MilestoneApprovedHandler(this.prisma, this.notificationService, this.reputationService));
     this.register(new MilestoneRejectedHandler(this.prisma, this.notificationService, this.reputationService));
     this.register(new FundsReleasedHandler(this.prisma));
-    this.register(new ProjectCompletedHandler(this.prisma));
-    this.register(new ProjectFailedHandler(this.prisma));
+    this.register(new ProjectCompletedHandler(this.prisma, this.reputationService));
+    this.register(new ProjectFailedHandler(this.prisma, this.reputationService));
 
     this.logger.log(`Registered ${this.handlers.size} event handlers`);
   }

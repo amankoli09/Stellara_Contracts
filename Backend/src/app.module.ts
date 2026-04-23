@@ -1,9 +1,10 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
-import { UserController } from './user.controller';
 import { AppService } from './app.service';
+import { UserModule } from './user/user.module';
 import { validateEnv } from './config/env.validation';
 import { ReputationModule } from './reputation/reputation.module';
 import { DatabaseModule } from './database.module';
@@ -20,6 +21,7 @@ import { AppCacheModule } from './cache/cache.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
@@ -31,8 +33,8 @@ import { AppCacheModule } from './cache/cache.module';
       useFactory: (config: ConfigService) => ({
         throttlers: [
           {
-            ttl: 60000, // 1 minute
-            limit: 100, // 100 requests per minute per IP
+            ttl: 60000,
+            limit: 100,
           },
         ],
       }),
@@ -46,8 +48,9 @@ import { AppCacheModule } from './cache/cache.module';
     InsuranceModule,
     RegenerativeFinanceModule,
     AppCacheModule,
+    UserModule,
   ],
-  controllers: [AppController, UserController],
+  controllers: [AppController],
   providers: [AppService, AppLogger],
 })
 export class AppModule implements NestModule {

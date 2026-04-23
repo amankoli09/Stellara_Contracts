@@ -1,6 +1,5 @@
-import { ReputationActivity } from '../reputation-activity.entity';
+import { ReputationActivity, ActivityType } from '@prisma/client';
 import {
-  ActivityType,
   FACTOR_WEIGHTS,
   MAX_SCORE,
   MIN_ACTIVITY_THRESHOLD,
@@ -36,7 +35,7 @@ export interface ScoreBreakdown extends FactorScores {
  * A perfect 100% success rate yields 100; 0% yields 0.
  */
 export function calcSuccessRateScore(activities: ReputationActivity[], now: Date): number {
-  const transactionTypes = new Set([
+  const transactionTypes = new Set<ActivityType>([
     ActivityType.SUCCESSFUL_TRANSACTION,
     ActivityType.FAILED_TRANSACTION,
   ]);
@@ -73,7 +72,7 @@ export function calcPeerRatingScore(activities: ReputationActivity[], now: Date)
 
   for (const r of ratings) {
     const w = timeDecayWeight(r.occurredAt, now);
-    weightedSum += r.value * w;
+    weightedSum += Number(r.value) * w;
     weightedTotal += w;
   }
 
@@ -94,7 +93,7 @@ export function calcPeerRatingScore(activities: ReputationActivity[], now: Date)
  * where SCALE_CAP represents the value at which a user earns 100 points.
  */
 export function calcContributionSizeScore(activities: ReputationActivity[], now: Date): number {
-  const contributionTypes = new Set([
+  const contributionTypes = new Set<ActivityType>([
     ActivityType.SUCCESSFUL_TRANSACTION,
     ActivityType.HIGH_VALUE_CONTRIBUTION,
   ]);
@@ -104,7 +103,7 @@ export function calcContributionSizeScore(activities: ReputationActivity[], now:
 
   let weightedValue = 0;
   for (const a of relevant) {
-    weightedValue += a.value * timeDecayWeight(a.occurredAt, now);
+    weightedValue += Number(a.value) * timeDecayWeight(a.occurredAt, now);
   }
 
   // SCALE_CAP: a user with this much weighted contribution value earns 100.
@@ -134,7 +133,7 @@ export function calcCommunityFeedbackScore(activities: ReputationActivity[], now
       wTotal = 0;
     for (const r of reviews) {
       const w = timeDecayWeight(r.occurredAt, now);
-      wSum += r.value * w;
+      wSum += Number(r.value) * w;
       wTotal += w;
     }
     reviewScore = wTotal > 0 ? clamp(((wSum / wTotal - 1) / 4) * 100) : 50;
